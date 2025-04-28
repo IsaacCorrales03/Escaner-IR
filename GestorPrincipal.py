@@ -2,11 +2,13 @@ import sqlite3
 import hashlib
 import sys
 from datetime import datetime
+from db import crear_base_de_datos
 
 class GestorCedulas:
     def __init__(self, db_file="cedulas.db"):
         """Inicializa la conexión a la base de datos SQLite"""
         try:
+            crear_base_de_datos()
             self.conexion = sqlite3.connect(db_file)
             # Configurar para que devuelva filas como diccionarios
             self.conexion.row_factory = sqlite3.Row
@@ -156,7 +158,7 @@ if __name__ == "__main__":
             print(f"{reg['nombre_estudiante']} - {reg['numero_de_cedula']} - {reg['especialidad']}")
         
         # Ejemplo de eliminación
-        #gestor.eliminar_registro("V87654321")
+        gestor.eliminar_registro("V87654321")
         
         gestor.cerrar_conexion()
     except Exception as e:

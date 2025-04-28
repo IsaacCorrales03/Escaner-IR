@@ -6,10 +6,11 @@ Este proyecto implementa un sistema para gestionar cédulas estudiantiles median
 
 ## Estructura del Proyecto
 
-El proyecto consta de dos archivos principales:
+El proyecto consta de tres archivos principales:
 
 1. **db.py**: Script encargado de crear y configurar la base de datos SQLite.
-2. **sistema_cedulas.py**: Implementación principal del sistema con todas las operaciones CRUD.
+2. **gestor_cedulas.py**: Implementación principal del sistema con todas las operaciones CRUD.
+3. **ui.py**: Interfaz gráfica de usuario desarrollada con Flet.
 
 ## Funcionalidades Implementadas
 
@@ -33,7 +34,7 @@ También se crean índices para optimizar las búsquedas:
 - Índice para `numero_de_cedula`
 - Índice para `codigo_hash`
 
-### Sistema de Gestión (sistema_cedulas.py)
+### Sistema de Gestión (gestor_cedulas.py)
 
 La clase `GestorCedulas` implementa las siguientes operaciones:
 
@@ -67,20 +68,47 @@ eliminar_registro(cedula)
 ```
 Elimina un registro de la base de datos utilizando su número de cédula.
 
+### Interfaz de Usuario (ui.py)
+
+La interfaz gráfica desarrollada con Flet proporciona una forma intuitiva de interactuar con el sistema:
+
+#### Características de la Interfaz
+
+- **Diseño de pestañas** con tres secciones principales:
+  - **Crear Registro**: Formulario para ingresar nuevos estudiantes
+  - **Buscar y Administrar**: Para buscar, actualizar o eliminar registros
+  - **Ver Todos los Registros**: Muestra una tabla con todos los registros disponibles
+
+- **Funcionalidades**:
+  - Creación de nuevos registros con validación de campos
+  - Búsqueda de registros por número de cédula
+  - Visualización detallada de la información de cada registro
+  - Actualización de datos de registros existentes
+  - Eliminación de registros
+  - Visualización tabular de todos los registros en la base de datos
+
+- **Experiencia de usuario**:
+  - Mensajes de feedback para cada operación
+  - Validación de datos en tiempo real
+  - Diseño limpio y organizado para facilitar el uso
+  - Manejo integral de errores con mensajes informativos
+
 ## Tecnologías Utilizadas
 
 - **Python**: Lenguaje de programación principal
 - **SQLite**: Sistema de gestión de bases de datos ligero
 - **Hashlib**: Biblioteca para generación de códigos hash
+- **Flet**: Framework para creación de interfaces gráficas multiplataforma
 
 ## Avances y Planes Futuros
 
-### Estado Actual (50% completado)
+### Estado Actual (75% completado)
 
 - ✅ Implementación completa de operaciones CRUD
 - ✅ Generación y almacenamiento de códigos hash para cédulas
 - ✅ Base de datos SQLite funcional y optimizada
 - ✅ Manejo de errores y excepciones
+- ✅ Interfaz gráfica de usuario funcional e intuitiva
 
 ### Próximas Funcionalidades
 
@@ -106,7 +134,7 @@ Para mejorar la escalabilidad y permitir mayor concurrencia de usuarios, se plan
 ### Requisitos
 
 - Python 3.6 o superior
-- Biblioteca SQLite (incluida en Python estándar)
+- Dependencias listadas en `requirements.txt`
 
 ### Instalación
 
@@ -116,29 +144,44 @@ git clone https://github.com/tu-usuario/sistema-cedulas.git
 cd sistema-cedulas
 ```
 
-2. No se requieren dependencias adicionales ya que SQLite viene incluido con Python.
+2. Instale las dependencias necesarias:
+```
+pip install -r requirements.txt
+```
 
-### Uso Básico
-
-1. Primero, cree la base de datos:
+3. Cree la base de datos:
 ```
 python db.py
 ```
 
-2. Luego puede ejecutar el sistema:
+### Uso del Sistema
+
+#### Interfaz Gráfica
+
+Para iniciar la aplicación con la interfaz gráfica:
 ```
-python sistema_cedulas.py
+python ui.py
 ```
 
-3. Para integrar este sistema en su aplicación, puede importar la clase `GestorCedulas`:
+La interfaz te permitirá:
+1. Crear nuevos registros de estudiantes
+2. Buscar estudiantes por número de cédula
+3. Actualizar información de estudiantes existentes
+4. Eliminar registros
+5. Ver todos los registros en formato tabular
+
+#### Uso como Biblioteca
+
+También puedes integrar este sistema en tu aplicación importando la clase `GestorCedulas`:
+
 ```python
-from sistema_cedulas import GestorCedulas
+from gestor_cedulas import GestorCedulas
 
 gestor = GestorCedulas()
 gestor.crear_registro("Nombre", "V12345678", "Especialidad", "3", "A")
 ```
 
-## Ejemplo de Uso
+## Ejemplo de Uso (API)
 
 ```python
 # Crear instancia del gestor
@@ -165,4 +208,12 @@ gestor.eliminar_registro("V12345678")
 
 # Cerrar conexión
 gestor.cerrar_conexion()
+```
+
+## Contenido del requirements.txt
+
+El archivo `requirements.txt` incluye todas las dependencias necesarias para ejecutar el sistema:
+
+```
+flet>=0.27.6
 ```
