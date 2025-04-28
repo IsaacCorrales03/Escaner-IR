@@ -9,7 +9,8 @@ Este proyecto implementa un sistema para gestionar cédulas estudiantiles median
 El proyecto consta de tres archivos principales:
 
 1. **db.py**: Script encargado de crear y configurar la base de datos SQLite.
-2. **sistema_cedulas.py**: Implementación principal del sistema con todas las operaciones CRUD.
+2. **GestorPrincipal.py**: Implementación principal del sistema con todas las operaciones CRUD.
+3. **ui.py**: Implementación de la interfaz gráfica
 
 ## Funcionalidades Implementadas
 
