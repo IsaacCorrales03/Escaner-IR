@@ -448,12 +448,73 @@ Implementa una interfaz gráfica moderna y responsiva utilizando la biblioteca F
                     │               │
                     └───────────────┘
 ```
+# Guía de Uso - Sistema de Gestión de Becas de Comedor
 
-## Posibles Mejoras Futuras
+## Instrucciones de uso detalladas
 
-1. **Integración con API externa**: Para verificar la validez de las cédulas
-2. **Exportación de datos**: Funcionalidad para exportar registros a Excel o PDF
-3. **Sistema de usuarios**: Implementar autenticación para diferentes niveles de acceso
-4. **Estadísticas y reportes**: Análisis estadístico de estudiantes registrados
-5. **Mejoras en el OCR**: Implementar algoritmos de preprocesamiento para mejorar detección
-6. **Respaldo automático**: Sistema de respaldo periódico de la base de datos
+### Primer arranque
+1. Asegúrate de instalar todas las dependencias primero:
+   ```
+   pip install flet opencv-python easyocr numpy pillow pygame
+   ```
+
+2. La primera vez que ejecutes el sistema (`python UI.py`), se creará automáticamente la base de datos `cedulas.db` si no existe.
+
+3. Es recomendable crear algunos registros manualmente antes de empezar a usar el escáner.
+
+### Flujo de trabajo recomendado
+
+1. **Configuración inicial**:
+   - Crea registros de todos los estudiantes elegibles para becas de comedor
+   - Verifica la conexión de la cámara antes de iniciar sesiones de escaneo
+
+2. **Uso diario**:
+   - Abre la aplicación y ve a la pestaña "Escaneo"
+   - Al presentarse cada estudiante, escanea su cédula
+   - El sistema verificará automáticamente si está registrado y elegible
+
+## Consejos de uso
+
+### Para mejorar la detección OCR
+- **Iluminación**: Usa luz uniforme y evita reflejos en las cédulas
+- **Distancia óptima**: Mantén la cédula a 15-20 cm de la cámara
+- **Orientación**: El número debe estar horizontal y completamente visible
+- **Estabilidad**: Sostén la cédula de manera estable por 1-2 segundos
+- **Fondo contrastante**: Usa un fondo que contraste con la cédula (preferiblemente oscuro)
+
+### Para gestión de datos
+- **Nombrado consistente**: Usa el mismo formato para todos los nombres (ej. "Apellido, Nombre")
+- **Respaldos**: Realiza copias de seguridad periódicas del archivo `cedulas.db`
+- **Actualizaciones masivas**: Para cambios en muchos registros, considera editar directamente la base de datos SQLite
+
+### Solución de problemas comunes
+1. **Cámara no detectada**:
+   - Verifica que la cámara esté conectada antes de iniciar la aplicación
+   - Si tienes múltiples cámaras, es posible que debas modificar el código en `IR_scanner.py` para seleccionar la correcta
+
+2. **Detección lenta o poco precisa**:
+   - Mejora la iluminación
+   - Limpia la lente de la cámara
+   - Verifica que la cédula esté en buen estado
+
+3. **La aplicación se bloquea**:
+   - Asegúrate de cerrar correctamente la aplicación siempre (para liberar la cámara)
+   - Reinicia la aplicación si el escáner deja de responder
+
+## Consideraciones técnicas adicionales
+
+### Rendimiento
+- EasyOCR es computacionalmente intensivo. En computadoras menos potentes:
+  - Reducir la resolución de captura en `IR_scanner.py`
+  - Aumentar el tiempo entre escaneos (actualmente hay un cooldown de 2 segundos)
+
+### Personalización
+- **Sonidos**: Puedes reemplazar los archivos `success.mp3` y `wrong.mp3` con tus propios sonidos
+- **Umbrales OCR**: El valor de confianza mínimo (0.60) puede ajustarse en `IR_scanner.py` según tus necesidades
+- **Campos personalizados**: Si necesitas campos adicionales, deberás modificar tanto `db.py` como `GestorPrincipal.py`
+
+## Recomendación para uso institucional
+- Realizar pruebas extensivas antes de implementar completamente
+- Entrenar al personal en el uso correcto del sistema
+- Establecer un protocolo para situaciones donde el sistema no reconozca una cédula válida
+- Mantener un registro físico de respaldo durante el período inicial de implementación
