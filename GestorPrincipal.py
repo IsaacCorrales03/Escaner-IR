@@ -1,22 +1,43 @@
 import sqlite3
 import hashlib
 import sys
-from datetime import datetime
+from threading import Lock
 from db import crear_base_de_datos
 
 class GestorCedulas:
+    # Variable de clase para almacenar la única instancia
+    _instance = None
+    # Lock para garantizar thread-safety durante la creación de la instancia
+    _lock = Lock()
+
+    def __new__(cls, db_file="cedulas.db"):
+        """
+        Implementa el patrón Singleton asegurando que solo haya una instancia.
+        Thread-safe usando Lock.
+        """
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(GestorCedulas, cls).__new__(cls)
+                # Inicializar la instancia solo una vez
+                cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self, db_file="cedulas.db"):
-        """Inicializa la conexión a la base de datos SQLite"""
-        try:
-            crear_base_de_datos()
-            self.conexion = sqlite3.connect(db_file)
-            # Configurar para que devuelva filas como diccionarios
-            self.conexion.row_factory = sqlite3.Row
-            self.cursor = self.conexion.cursor()
-            print(f"Conexión exitosa a la base de datos SQLite: {db_file}")
-        except sqlite3.Error as e:
-            print(f"Error al conectar a SQLite: {e}")
-            sys.exit(1)
+        """
+        Inicializa la conexión a la base de datos SQLite solo si no está inicializada.
+        """
+        if not getattr(self, '_initialized', False):
+            try:
+                crear_base_de_datos()
+                self.conexion = sqlite3.connect(db_file, check_same_thread=False)
+                # Configurar para que devuelva filas como diccionarios
+                self.conexion.row_factory = sqlite3.Row
+                self.cursor = self.conexion.cursor()
+                print(f"Conexión exitosa a la base de datos SQLite: {db_file}")
+                self._initialized = True
+            except sqlite3.Error as e:
+                print(f"Error al conectar a SQLite: {e}")
+                sys.exit(1)
 
     def cerrar_conexion(self):
         """Cierra la conexión a la base de datos"""
@@ -24,6 +45,9 @@ class GestorCedulas:
             self.cursor.close()
             self.conexion.close()
             print("Conexión cerrada")
+            # Resetear la instancia para permitir reconexión si es necesario
+            with self._lock:
+                GestorCedulas._instance = None
 
     def generar_hash(self, numero_cedula):
         """Genera un hash único para la cédula"""
@@ -57,7 +81,6 @@ class GestorCedulas:
             registro = self.cursor.fetchone()
             
             if registro:
-                # Convertir objeto Row a diccionario
                 return dict(registro)
             else:
                 print("No se encontró ningún registro con esa cédula")
@@ -74,7 +97,6 @@ class GestorCedulas:
             registros = self.cursor.fetchall()
             
             if registros:
-                # Convertir objetos Row a diccionarios
                 resultados = [dict(registro) for registro in registros]
                 return resultados
             else:
@@ -137,6 +159,7 @@ class GestorCedulas:
 # Ejemplo de uso del sistema
 if __name__ == "__main__":
     try:
+        # Crear la única instancia del gestor
         gestor = GestorCedulas()
         
         # Ejemplo de creación
@@ -160,6 +183,11 @@ if __name__ == "__main__":
         # Ejemplo de eliminación
         gestor.eliminar_registro("V87654321")
         
+        # Cerrar conexión
         gestor.cerrar_conexion()
+        
+        # Intentar crear otra instancia (debería devolver la misma)
+        gestor2 = GestorCedulas()
+        print(f"¿Es la misma instancia? {gestor is gestor2}")  # Debería imprimir True
     except Exception as e:
         print(f"Error general: {e}")
