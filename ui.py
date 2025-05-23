@@ -170,15 +170,39 @@ class CedulaApp:
                 padding=15
             )
         )
-        
+        tab_historial = ft.Tab(
+            text="Historial",
+            icon=ft.Icons.HISTORY,
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text("Historial de Verificaciones", size=20),
+                    ft.Row([
+                        ft.ElevatedButton(
+                            "Refrescar Historial", 
+                            on_click=lambda _: self.cargar_historial(),
+                            icon=ft.Icons.REFRESH
+                        ),
+                        ft.ElevatedButton(
+                            "Exportar Historial", 
+                            on_click=self.exportar_historial,
+                            icon=ft.Icons.DOWNLOAD,
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.GREEN
+                            )
+                        )
+                    ]),
+                    self.tabla_historial
+                ]),
+                padding=15
+            )
+        )
         # Crear TabView con las pestañas
         tabs = ft.Tabs(
             selected_index=0,
             animation_duration=300,
-            tabs=[tab_escaneo, tab_crear, tab_buscar, tab_listar],
+            tabs=[tab_escaneo, tab_crear, tab_buscar, tab_listar, tab_historial],
             expand=True,
         )
-        
         # Agregar el TabView a la página
         page.add(tabs)
         self.cargar_registros()
@@ -202,6 +226,19 @@ class CedulaApp:
             width=750,
             height=250,
             visible=False
+        )
+        self.tabla_historial = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("Nombre")),
+                ft.DataColumn(ft.Text("Cédula")),
+                ft.DataColumn(ft.Text("Fecha")),
+                ft.DataColumn(ft.Text("Hora")),
+            ],
+            rows=[],
+            border=ft.border.all(1, ft.Colors.GREY_400),
+            border_radius=5,
+            vertical_lines=ft.border.BorderSide(1, ft.Colors.GREY_400),
+            horizontal_lines=ft.border.BorderSide(1, ft.Colors.GREY_400),
         )
 
         # Tabla para mostrar registros
@@ -263,7 +300,65 @@ class CedulaApp:
             self.img_view.src = "desactivar-camara.png"
             self.img_view.src_base64 = None
             
+    def cargar_historial(self):
+        """Carga todo el historial en la tabla"""
+        try:
+            historial = gestor.listar_historial_completo()
+            
+            # Limpiar filas existentes
+            self.tabla_historial.rows.clear()
+            
+            # Agregar nuevas filas
+            for entrada in historial:
+                self.tabla_historial.rows.append(
+                    ft.DataRow(
+                        cells=[
+                            ft.DataCell(ft.Text(entrada['nombre_estudiante'])),
+                            ft.DataCell(ft.Text(entrada['numero_de_cedula'])),
+                            ft.DataCell(ft.Text(entrada['dia'])),
+                            ft.DataCell(ft.Text(entrada['hora'])),
+                        ]
+                    )
+                )
+            
+            self.page.update()
+            self.mostrar_mensaje(f"Historial cargado: {len(historial)} entradas", ft.Colors.GREEN)
+        except Exception as ex:
+            self.mostrar_mensaje(f"Error al cargar historial: {str(ex)}", ft.Colors.RED)
 
+    def exportar_historial(self, e):
+        """Exporta el historial a un archivo de texto"""
+        try:
+            historial = gestor.listar_historial_completo()
+            
+            if not historial:
+                self.mostrar_mensaje("No hay datos en el historial para exportar", ft.Colors.ORANGE)
+                return
+            
+            # Crear nombre de archivo con fecha actual
+            from datetime import datetime
+            fecha_actual = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_archivo = f"historial_verificaciones_{fecha_actual}.txt"
+            
+            with open('historiales/' + nombre_archivo, 'w', encoding='utf-8') as f:
+                f.write("HISTORIAL DE VERIFICACIONES DE CÉDULAS\n")
+                f.write("=" * 50 + "\n\n")
+                
+                for entrada in historial:
+                    f.write(f"Nombre: {entrada['nombre_estudiante']}\n")
+                    f.write(f"Cédula: {entrada['numero_de_cedula']}\n")
+                    f.write(f"Fecha: {entrada['dia']}\n")
+                    f.write(f"Hora: {entrada['hora']}\n")
+                    f.write("-" * 30 + "\n")
+                
+                f.write(f"\nTotal de entradas: {len(historial)}\n")
+                f.write(f"Exportado el: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            
+            self.mostrar_mensaje(f"Historial exportado a: {nombre_archivo}", ft.Colors.GREEN)
+            
+        except Exception as ex:
+            self.mostrar_mensaje(f"Error al exportar historial: {str(ex)}", ft.Colors.RED)
+    
     def on_cedula_found(self, cedula):
         """Callback cuando se encuentra una cédula"""
         print(f"[INFO] Mostrando modal para cédula: {cedula}")
@@ -283,150 +378,261 @@ class CedulaApp:
         
         is_registered = gestor.buscar_por_cedula(cedula)
         if is_registered:
+            # AGREGAR AL HISTORIAL CUANDO SE ESCANEA UNA CÉDULA REGISTRADA
+            try:
+                gestor.agregar_entrada_historial(cedula)
+                print(f"[INFO] Entrada agregada al historial para cédula: {cedula}")
+            except Exception as e:
+                print(f"[ERROR] Error al agregar al historial: {e}")
+            
             # Crear el diálogo modal con todos los datos del estudiante
             modal_dlg = ft.AlertDialog(
                 modal=True,
-                title=ft.Text("Estudiante Registrado", size=24, weight=ft.FontWeight.BOLD),
-                content=ft.Column(
-                    [
-                        ft.Card(
-                            content=ft.Container(
-                                content=ft.Column(
-                                    [
-                                        ft.Text("INFORMACIÓN DEL ESTUDIANTE", 
-                                            weight=ft.FontWeight.BOLD, 
-                                            size=18,
-                                            color=ft.Colors.BLUE),
-                                        ft.Divider(),
-                                        
-                                        # Nombre del estudiante
-                                        ft.Text("Nombre:", size=16),
-                                        ft.Text(
-                                            is_registered["nombre_estudiante"], 
-                                            size=20, 
-                                            weight=ft.FontWeight.BOLD,
-                                            selectable=True
-                                        ),
-                                        ft.Divider(height=10, thickness=0.5),
-                                        
-                                        # Número de cédula
-                                        ft.Text("Número de Cédula:", size=16),
-                                        ft.Text(
-                                            is_registered["numero_de_cedula"], 
-                                            size=20, 
-                                            weight=ft.FontWeight.BOLD, 
-                                            color=ft.Colors.GREEN,
-                                            selectable=True
-                                        ),
-                                        ft.Divider(height=10, thickness=0.5),
-                                        
-                                        # Especialidad
-                                        ft.Text("Especialidad:", size=16),
-                                        ft.Text(
-                                            is_registered["especialidad"], 
-                                            size=20, 
-                                            weight=ft.FontWeight.BOLD,
-                                            selectable=True
-                                        ),
-                                        ft.Divider(height=10, thickness=0.5),
-                                        
-                                        # Año
-                                        ft.Text("Año:", size=16),
-                                        ft.Text(
-                                            is_registered["año"], 
-                                            size=20, 
-                                            weight=ft.FontWeight.BOLD,
-                                            selectable=True
-                                        ),
-                                        ft.Divider(height=10, thickness=0.5),
-                                        
-                                        # Sección
-                                        ft.Text("Sección:", size=16),
-                                        ft.Text(
-                                            is_registered["sección"], 
-                                            size=20, 
-                                            weight=ft.FontWeight.BOLD,
-                                            selectable=True
-                                        ),
-                                        ft.Divider(height=10, thickness=0.5),
-                                        
-                                        # Código Hash
-                                        ft.Text("Código Hash:", size=16),
-                                        ft.Text(
-                                            is_registered["codigo_hash"], 
-                                            size=14, 
-                                            weight=ft.FontWeight.BOLD,
-                                            color=ft.Colors.BLUE_GREY,
-                                            selectable=True
-                                        ),
-                                    ],
-                                    spacing=5,
-                                    horizontal_alignment=ft.CrossAxisAlignment.START,
+                title=ft.Row([
+                    ft.Icon(ft.Icons.VERIFIED_USER, color=ft.Colors.GREEN, size=32),
+                    ft.Text("Estudiante Registrado", size=24, weight=ft.FontWeight.BOLD)
+                ]),
+                content=ft.Container(
+                    content=ft.Row([
+                        # Columna izquierda - Información del estudiante
+                        ft.Column([
+                            ft.Card(
+                                content=ft.Container(
+                                    content=ft.Column(
+                                        [
+                                            ft.Container(
+                                                content=ft.Text(
+                                                    "INFORMACIÓN DEL ESTUDIANTE", 
+                                                    weight=ft.FontWeight.BOLD, 
+                                                    size=18,
+                                                    color=ft.Colors.BLUE
+                                                ),
+                                                alignment=ft.alignment.center,
+                                                padding=ft.padding.only(bottom=10)
+                                            ),
+                                            ft.Divider(),
+                                            
+                                            # Información organizada en filas
+                                            self._create_info_row("Nombre:", is_registered["nombre_estudiante"], ft.Colors.BLACK),
+                                            self._create_info_row("Cédula:", is_registered["numero_de_cedula"], ft.Colors.GREEN),
+                                            self._create_info_row("Especialidad:", is_registered["especialidad"], ft.Colors.BLACK),
+                                            self._create_info_row("Año:", is_registered["año"], ft.Colors.BLACK),
+                                            self._create_info_row("Sección:", is_registered["sección"], ft.Colors.BLACK),
+                                            self._create_info_row("Código Hash:", is_registered["codigo_hash"][:16] + "...", ft.Colors.BLUE_GREY),
+                                            
+                                            ft.Divider(),
+                                            
+                                            # Indicador de registro en historial
+                                            ft.Container(
+                                                content=ft.Row([
+                                                    ft.Icon(ft.Icons.HISTORY, color=ft.Colors.GREEN, size=20),
+                                                    ft.Text("Verificación registrada", 
+                                                        size=14, 
+                                                        color=ft.Colors.GREEN,
+                                                        weight=ft.FontWeight.BOLD)
+                                                ], 
+                                                alignment=ft.MainAxisAlignment.CENTER),
+                                                bgcolor=ft.Colors.GREEN_50,
+                                                padding=10,
+                                                border_radius=8,
+                                            ),
+                                        ],
+                                        spacing=8,
+                                        scroll=ft.ScrollMode.AUTO,
+                                    ),
+                                    padding=20,
+                                    border_radius=10,
                                 ),
-                                padding=20,
-                                border_radius=10,
+                                elevation=3,
                             ),
-                            elevation=5,
-                        ),
-                    ],
-                    tight=True,
+                        ], expand=2),
+                        
+                        # Columna derecha - Imagen del estudiante
+                        ft.Column([
+                            ft.Card(
+                                content=ft.Container(
+                                    content=ft.Column([
+                                        ft.Text(
+                                            "FOTO",
+                                            weight=ft.FontWeight.BOLD,
+                                            size=16,
+                                            color=ft.Colors.BLUE,
+                                            text_align=ft.TextAlign.CENTER
+                                        ),
+                                        ft.Divider(),
+                                        ft.Container(
+                                            content=ft.Image(
+                                                src=f"assets/images/{cedula}.jpg",
+                                                width=200,
+                                                height=200,
+                                                fit=ft.ImageFit.COVER,
+                                                border_radius=ft.border_radius.all(10),
+                                                error_content=ft.Container(
+                                                    content=ft.Column([
+                                                        ft.Icon(
+                                                            ft.Icons.PERSON,
+                                                            size=80,
+                                                            color=ft.Colors.GREY_400
+                                                        ),
+                                                        ft.Text(
+                                                            "Sin imagen",
+                                                            size=12,
+                                                            color=ft.Colors.GREY_600
+                                                        )
+                                                    ],
+                                                    alignment=ft.MainAxisAlignment.CENTER,
+                                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                                                    width=200,
+                                                    height=200,
+                                                    bgcolor=ft.Colors.GREY_100,
+                                                    border_radius=10,
+                                                    alignment=ft.alignment.center
+                                                )
+                                            ),
+                                            alignment=ft.alignment.center,
+                                            padding=10
+                                        )
+                                    ]),
+                                    padding=20,
+                                    border_radius=10,
+                                ),
+                                elevation=3,
+                            ),
+                        ], expand=1),
+                    ], spacing=15),
+                    width=700,
+                    height=400,
                 ),
                 actions=[
-                    ft.TextButton("Continuar Escaneando", on_click=lambda e: self.page.close(modal_dlg)),
+                    ft.Container(
+                        content=ft.Row([
+                            ft.ElevatedButton(
+                                "Continuar Escaneando",
+                                icon=ft.Icons.QR_CODE_SCANNER,
+                                color=ft.Colors.WHITE,
+                                bgcolor=ft.Colors.GREEN,
+                                on_click=lambda e: self.page.close(modal_dlg)
+                            ),
+                            ft.OutlinedButton(
+                                "Cerrar",
+                                icon=ft.Icons.CLOSE,
+                                on_click=lambda e: self.on_detener_escaneo(e)
+                            ),
+                        ], 
+                        alignment=ft.MainAxisAlignment.END,
+                        spacing=10),
+                        padding=ft.padding.only(top=10)
+                    )
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
                 on_dismiss=lambda e: self.on_detener_escaneo(e),
             )
             sonido = pygame.mixer.Sound('assets/success.mp3')
         else:
-            # Mostrar diálogo de cédula no registrada
+            # Mostrar diálogo de cédula no registrada (NO se agrega al historial)
             modal_dlg = ft.AlertDialog(
                 modal=True,
-                title=ft.Text("Alerta", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.RED),
-                content=ft.Column(
-                    [
-                        ft.Card(
-                            content=ft.Container(
-                                content=ft.Column(
-                                    [
-                                        ft.Icon(
-                                            name=ft.Icons.WARNING_ROUNDED,
-                                            color=ft.Colors.RED,
-                                            size=64,
-                                        ),
-                                        ft.Text(
-                                            "Cédula no registrada",
-                                            size=20,
-                                            weight=ft.FontWeight.BOLD,
-                                            color=ft.Colors.RED,
+                title=ft.Row([
+                    ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED, size=32),
+                    ft.Text("Cédula No Registrada", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.RED)
+                ]),
+                content=ft.Container(
+                    content=ft.Card(
+                        content=ft.Container(
+                            content=ft.Column(
+                                [
+                                    ft.Icon(
+                                        name=ft.Icons.WARNING_ROUNDED,
+                                        color=ft.Colors.RED,
+                                        size=80,
+                                    ),
+                                    ft.Text(
+                                        "Acceso Denegado",
+                                        size=24,
+                                        weight=ft.FontWeight.BOLD,
+                                        color=ft.Colors.RED,
+                                        text_align=ft.TextAlign.CENTER,
+                                    ),
+                                    ft.Text(
+                                        f"La cédula {cedula} no está registrada en el sistema",
+                                        size=16,
+                                        text_align=ft.TextAlign.CENTER,
+                                        color=ft.Colors.GREY_700,
+                                    ),
+                                    ft.Container(
+                                        content=ft.Text(
+                                            "Por favor, contacte con el administrador para registrar esta cédula",
+                                            size=14,
                                             text_align=ft.TextAlign.CENTER,
+                                            color=ft.Colors.GREY_600,
+                                            italic=True
                                         ),
-                                        ft.Text(
-                                            f"El número {cedula} no está en el sistema",
-                                            size=16,
-                                            text_align=ft.TextAlign.CENTER,
-                                        ),
-                                    ],
-                                    spacing=10,
-                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                                ),
-                                padding=20,
-                                border_radius=10,
+                                        padding=ft.padding.only(top=10)
+                                    )
+                                ],
+                                spacing=15,
+                                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                             ),
-                            elevation=5,
+                            padding=30,
+                            border_radius=10,
                         ),
-                    ],
-                    tight=True,
+                        elevation=3,
+                    ),
+                    width=400,
+                    height=300,
                 ),
                 actions=[
-                    ft.TextButton("Cerrar", on_click=lambda e: self.page.close(modal_dlg)),
+                    ft.Container(
+                        content=ft.Row([
+                            ft.ElevatedButton(
+                                "Intentar de Nuevo",
+                                icon=ft.Icons.REFRESH,
+                                color=ft.Colors.WHITE,
+                                bgcolor=ft.Colors.BLUE,
+                                on_click=lambda e: self.page.close(modal_dlg)
+                            ),
+                            ft.OutlinedButton(
+                                "Cerrar",
+                                icon=ft.Icons.CLOSE,
+                                color=ft.Colors.RED,
+                                on_click=lambda e: self.page.close(modal_dlg)
+                            ),
+                        ], 
+                        alignment=ft.MainAxisAlignment.END,
+                        spacing=10),
+                        padding=ft.padding.only(top=10)
+                    )
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
                 on_dismiss=lambda e: self.page.close(modal_dlg),
             )
             sonido = pygame.mixer.Sound('assets/wrong.mp3')
+        
         self.page.open(modal_dlg)
         sonido.play()
+
+    def _create_info_row(self, label, value, color=ft.Colors.BLACK):
+        """Crea una fila de información consistente"""
+        return ft.Container(
+            content=ft.Row([
+                ft.Container(
+                    content=ft.Text(label, size=14, weight=ft.FontWeight.W_500, color=ft.Colors.GREY_700),
+                    width=120,
+                ),
+                ft.Container(
+                    content=ft.Text(
+                        str(value), 
+                        size=16, 
+                        weight=ft.FontWeight.BOLD,
+                        color=color,
+                        selectable=True
+                    ),
+                    expand=True
+                )
+            ]),
+            padding=ft.padding.symmetric(vertical=4),
+            border=ft.border.only(bottom=ft.BorderSide(0.5, ft.Colors.GREY_300))
+        )
     
     def on_scan_failed(self):
         """Callback cuando no se encuentra una cédula"""

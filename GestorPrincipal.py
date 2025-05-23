@@ -1,6 +1,7 @@
 import sqlite3
 import hashlib
 import sys
+from datetime import datetime, date, time
 from threading import Lock
 from db import crear_base_de_datos
 
@@ -54,17 +55,27 @@ class GestorCedulas:
         hash_object = hashlib.sha256(str(numero_cedula).encode())
         return hash_object.hexdigest()
 
-    # Operaciones CRUD
-    def crear_registro(self, nombre, cedula, especialidad, anio, seccion):
+    # Operaciones CRUD para cédulas
+    
+    def crear_registro(self, nombre, cedula, especialidad, anio, seccion, ruta_img_estudiante=None):
         """Crea un nuevo registro en la base de datos"""
         try:
             codigo_hash = self.generar_hash(cedula)
+            
+            # Si no se proporciona ruta de imagen, usar ruta por defecto
+            if ruta_img_estudiante is None:
+                ruta_img_estudiante = f"assets/images/{cedula}.jpg"
+            else:
+                # Agregar prefijo si no lo tiene
+                if not ruta_img_estudiante.startswith("assets/images/"):
+                    ruta_img_estudiante = f"assets/images/{ruta_img_estudiante}"
+            
             consulta = """
             INSERT INTO cedulas_registradas 
-            (nombre_estudiante, numero_de_cedula, codigo_hash, especialidad, año, sección) 
-            VALUES (?, ?, ?, ?, ?, ?)
+            (nombre_estudiante, numero_de_cedula, codigo_hash, especialidad, año, sección, ruta_img_estudiante) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """
-            valores = (nombre, cedula, codigo_hash, especialidad, anio, seccion)
+            valores = (nombre, cedula, codigo_hash, especialidad, anio, seccion, ruta_img_estudiante)
             self.cursor.execute(consulta, valores)
             self.conexion.commit()
             print(f"Registro creado exitosamente. ID: {self.cursor.lastrowid}")
@@ -155,8 +166,135 @@ class GestorCedulas:
             print(f"Error al eliminar registro: {e}")
             return False
 
+    # Operaciones CRUD para historial
+    def agregar_entrada_historial(self, cedula, dia=None, hora=None):
+        """
+        Agrega una entrada al historial para una cédula.
+        Si no se especifica día/hora, usa los valores actuales.
+        """
+        try:
+            # Primero verificar que la cédula existe
+            estudiante = self.buscar_por_cedula(cedula)
+            if not estudiante:
+                print("No se puede agregar al historial: cédula no registrada")
+                return False
+            
+            # Usar fecha/hora actual si no se especifica
+            if dia is None:
+                dia = date.today().isoformat()
+            if hora is None:
+                hora = datetime.now().time().strftime('%H:%M:%S')
+            
+            consulta = """
+            INSERT INTO historial 
+            (nombre_estudiante, numero_de_cedula, dia, hora) 
+            VALUES (?, ?, ?, ?)
+            """
+            valores = (estudiante['nombre_estudiante'], cedula, dia, hora)
+            self.cursor.execute(consulta, valores)
+            self.conexion.commit()
+            print(f"Entrada de historial agregada exitosamente. ID: {self.cursor.lastrowid}")
+            return True
+            
+        except sqlite3.Error as e:
+            print(f"Error al agregar entrada al historial: {e}")
+            return False
 
-# Ejemplo de uso del sistema
+    def buscar_historial_por_cedula(self, cedula):
+        """Busca todas las entradas del historial para una cédula específica"""
+        try:
+            consulta = """
+            SELECT * FROM historial 
+            WHERE numero_de_cedula = ? 
+            ORDER BY dia DESC, hora DESC
+            """
+            self.cursor.execute(consulta, (cedula,))
+            registros = self.cursor.fetchall()
+            
+            if registros:
+                return [dict(registro) for registro in registros]
+            else:
+                print("No se encontró historial para esa cédula")
+                return []
+        except sqlite3.Error as e:
+            print(f"Error al buscar historial: {e}")
+            return []
+
+    def buscar_historial_por_fecha(self, fecha):
+        """Busca todas las entradas del historial para una fecha específica"""
+        try:
+            consulta = """
+            SELECT * FROM historial 
+            WHERE dia = ? 
+            ORDER BY hora DESC
+            """
+            self.cursor.execute(consulta, (fecha,))
+            registros = self.cursor.fetchall()
+            
+            if registros:
+                return [dict(registro) for registro in registros]
+            else:
+                print(f"No se encontraron registros para la fecha {fecha}")
+                return []
+        except sqlite3.Error as e:
+            print(f"Error al buscar historial por fecha: {e}")
+            return []
+
+    def listar_historial_completo(self):
+        """Lista todo el historial ordenado por fecha y hora"""
+        try:
+            consulta = """
+            SELECT * FROM historial 
+            ORDER BY dia DESC, hora DESC
+            """
+            self.cursor.execute(consulta)
+            registros = self.cursor.fetchall()
+            
+            if registros:
+                return [dict(registro) for registro in registros]
+            else:
+                print("No hay registros en el historial")
+                return []
+        except sqlite3.Error as e:
+            print(f"Error al listar historial: {e}")
+            return []
+
+    def eliminar_entrada_historial(self, id_historial):
+        """Elimina una entrada específica del historial por su ID"""
+        try:
+            consulta = "DELETE FROM historial WHERE id = ?"
+            self.cursor.execute(consulta, (id_historial,))
+            self.conexion.commit()
+            
+            if self.cursor.rowcount > 0:
+                print(f"Entrada de historial eliminada exitosamente")
+                return True
+            else:
+                print("No se encontró la entrada del historial para eliminar")
+                return False
+        except sqlite3.Error as e:
+            print(f"Error al eliminar entrada del historial: {e}")
+            return False
+
+    def limpiar_historial_por_cedula(self, cedula):
+        """Elimina todas las entradas del historial para una cédula específica"""
+        try:
+            consulta = "DELETE FROM historial WHERE numero_de_cedula = ?"
+            self.cursor.execute(consulta, (cedula,))
+            self.conexion.commit()
+            
+            if self.cursor.rowcount > 0:
+                print(f"Historial limpiado para la cédula {cedula}. {self.cursor.rowcount} entradas eliminadas")
+                return True
+            else:
+                print("No se encontraron entradas del historial para esa cédula")
+                return False
+        except sqlite3.Error as e:
+            print(f"Error al limpiar historial: {e}")
+            return False
+
+
+# Ejemplo de uso del sistema con historial
 if __name__ == "__main__":
     try:
         # Crear la única instancia del gestor
@@ -166,28 +304,31 @@ if __name__ == "__main__":
         gestor.crear_registro("Juan Pérez", "V12345678", "Informática", "3", "A")
         gestor.crear_registro("María González", "V87654321", "Electrónica", "2", "B")
         
-        # Ejemplo de búsqueda
-        resultado = gestor.buscar_por_cedula("V12345678")
-        if resultado:
-            print(f"Estudiante encontrado: {resultado['nombre_estudiante']}")
+        # Agregar entradas al historial
+        gestor.agregar_entrada_historial("V12345678")  # Usa fecha/hora actual
+        gestor.agregar_entrada_historial("V87654321", "2024-01-15", "08:30:00")  # Fecha/hora específica
+        gestor.agregar_entrada_historial("V12345678", "2024-01-15", "14:45:00")
         
-        # Ejemplo de actualización
-        gestor.actualizar_registro("V12345678", {"nombre_estudiante": "Juan A. Pérez", "sección": "C"})
+        # Buscar historial por cédula
+        print("\nHistorial de Juan Pérez:")
+        historial_juan = gestor.buscar_historial_por_cedula("V12345678")
+        for entrada in historial_juan:
+            print(f"  {entrada['dia']} a las {entrada['hora']}")
         
-        # Ejemplo de listado
-        print("\nListado de registros:")
-        registros = gestor.listar_registros()
-        for reg in registros:
-            print(f"{reg['nombre_estudiante']} - {reg['numero_de_cedula']} - {reg['especialidad']}")
+        # Buscar historial por fecha
+        print("\nHistorial del 2024-01-15:")
+        historial_fecha = gestor.buscar_historial_por_fecha("2024-01-15")
+        for entrada in historial_fecha:
+            print(f"  {entrada['nombre_estudiante']} - {entrada['hora']}")
         
-        # Ejemplo de eliminación
-        gestor.eliminar_registro("V87654321")
+        # Listar todo el historial
+        print("\nHistorial completo:")
+        historial_completo = gestor.listar_historial_completo()
+        for entrada in historial_completo:
+            print(f"  {entrada['nombre_estudiante']} ({entrada['numero_de_cedula']}) - {entrada['dia']} {entrada['hora']}")
         
         # Cerrar conexión
         gestor.cerrar_conexion()
         
-        # Intentar crear otra instancia (debería devolver la misma)
-        gestor2 = GestorCedulas()
-        print(f"¿Es la misma instancia? {gestor is gestor2}")  # Debería imprimir True
     except Exception as e:
         print(f"Error general: {e}")

@@ -3,7 +3,7 @@ import os
 
 def crear_base_de_datos(nombre_db="cedulas.db"):
     """
-    Crea la base de datos SQLite y la tabla para el sistema de registro de cédulas.
+    Crea la base de datos SQLite y las tablas para el sistema de registro de cédulas.
     """
     try:
         # Verificar si el archivo ya existe
@@ -32,6 +32,21 @@ def crear_base_de_datos(nombre_db="cedulas.db"):
         cursor.execute(crear_tabla_query)
         print("Tabla 'cedulas_registradas' creada o ya existente")
         
+        # Crear tabla historial
+        crear_historial_query = """
+        CREATE TABLE IF NOT EXISTS historial (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre_estudiante TEXT NOT NULL,
+            numero_de_cedula TEXT NOT NULL,
+            dia DATE NOT NULL,
+            hora TIME NOT NULL,
+            fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (numero_de_cedula) REFERENCES cedulas_registradas (numero_de_cedula)
+        );
+        """
+        cursor.execute(crear_historial_query)
+        print("Tabla 'historial' creada o ya existente")
+        
         # Crear índices para optimizar búsquedas
         try:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_cedula ON cedulas_registradas(numero_de_cedula)")
@@ -39,6 +54,13 @@ def crear_base_de_datos(nombre_db="cedulas.db"):
             
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_hash ON cedulas_registradas(codigo_hash)")
             print("Índice para código hash creado o ya existente")
+            
+            # Índices para la tabla historial
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_historial_cedula ON historial(numero_de_cedula)")
+            print("Índice para historial por cédula creado o ya existente")
+            
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_historial_fecha ON historial(dia)")
+            print("Índice para historial por fecha creado o ya existente")
                 
         except sqlite3.Error as e:
             print(f"Error al crear índices: {e}")
