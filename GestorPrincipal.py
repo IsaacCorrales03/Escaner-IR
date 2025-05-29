@@ -101,7 +101,6 @@ class GestorCedulas:
             return None
 
     def listar_registros(self):
-        """Lista todos los registros de la base de datos"""
         try:
             consulta = "SELECT * FROM cedulas_registradas"
             self.cursor.execute(consulta)
@@ -111,7 +110,6 @@ class GestorCedulas:
                 resultados = [dict(registro) for registro in registros]
                 return resultados
             else:
-                print("No hay registros en la base de datos")
                 return []
         except sqlite3.Error as e:
             print(f"Error al listar registros: {e}")
@@ -167,18 +165,12 @@ class GestorCedulas:
             return False
 
     # Operaciones CRUD para historial
-    def agregar_entrada_historial(self, cedula, dia=None, hora=None):
+    def agregar_entrada_historial(self, cedula, becado, dia=None, hora=None):
         """
         Agrega una entrada al historial para una cédula.
         Si no se especifica día/hora, usa los valores actuales.
         """
         try:
-            # Primero verificar que la cédula existe
-            estudiante = self.buscar_por_cedula(cedula)
-            if not estudiante:
-                print("No se puede agregar al historial: cédula no registrada")
-                return False
-            
             # Usar fecha/hora actual si no se especifica
             if dia is None:
                 dia = date.today().isoformat()
@@ -187,10 +179,10 @@ class GestorCedulas:
             
             consulta = """
             INSERT INTO historial 
-            (nombre_estudiante, numero_de_cedula, dia, hora) 
+            (numero_de_cedula, dia, hora, becado) 
             VALUES (?, ?, ?, ?)
             """
-            valores = (estudiante['nombre_estudiante'], cedula, dia, hora)
+            valores = (cedula, dia, hora, becado)
             self.cursor.execute(consulta, valores)
             self.conexion.commit()
             print(f"Entrada de historial agregada exitosamente. ID: {self.cursor.lastrowid}")
@@ -203,16 +195,18 @@ class GestorCedulas:
     def buscar_historial_por_cedula(self, cedula):
         """Busca todas las entradas del historial para una cédula específica"""
         try:
+            hoy = datetime.now().strftime("%Y-%m-%d")
             consulta = """
             SELECT * FROM historial 
-            WHERE numero_de_cedula = ? 
+            WHERE numero_de_cedula = ? AND dia = ?
             ORDER BY dia DESC, hora DESC
             """
-            self.cursor.execute(consulta, (cedula,))
+            self.cursor.execute(consulta, (cedula,hoy))
             registros = self.cursor.fetchall()
             
             if registros:
                 return [dict(registro) for registro in registros]
+            
             else:
                 print("No se encontró historial para esa cédula")
                 return []
@@ -296,39 +290,7 @@ class GestorCedulas:
 
 # Ejemplo de uso del sistema con historial
 if __name__ == "__main__":
-    try:
         # Crear la única instancia del gestor
         gestor = GestorCedulas()
         
-        # Ejemplo de creación
-        gestor.crear_registro("Juan Pérez", "V12345678", "Informática", "3", "A")
-        gestor.crear_registro("María González", "V87654321", "Electrónica", "2", "B")
-        
-        # Agregar entradas al historial
-        gestor.agregar_entrada_historial("V12345678")  # Usa fecha/hora actual
-        gestor.agregar_entrada_historial("V87654321", "2024-01-15", "08:30:00")  # Fecha/hora específica
-        gestor.agregar_entrada_historial("V12345678", "2024-01-15", "14:45:00")
-        
-        # Buscar historial por cédula
-        print("\nHistorial de Juan Pérez:")
-        historial_juan = gestor.buscar_historial_por_cedula("V12345678")
-        for entrada in historial_juan:
-            print(f"  {entrada['dia']} a las {entrada['hora']}")
-        
-        # Buscar historial por fecha
-        print("\nHistorial del 2024-01-15:")
-        historial_fecha = gestor.buscar_historial_por_fecha("2024-01-15")
-        for entrada in historial_fecha:
-            print(f"  {entrada['nombre_estudiante']} - {entrada['hora']}")
-        
-        # Listar todo el historial
-        print("\nHistorial completo:")
-        historial_completo = gestor.listar_historial_completo()
-        for entrada in historial_completo:
-            print(f"  {entrada['nombre_estudiante']} ({entrada['numero_de_cedula']}) - {entrada['dia']} {entrada['hora']}")
-        
-        # Cerrar conexión
-        gestor.cerrar_conexion()
-        
-    except Exception as e:
-        print(f"Error general: {e}")
+        print(gestor.buscar_historial_por_cedula('120210112'))

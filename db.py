@@ -26,6 +26,7 @@ def crear_base_de_datos(nombre_db="cedulas.db"):
             especialidad TEXT NOT NULL,
             año TEXT NOT NULL,
             sección TEXT NOT NULL,
+            ruta_img_estudiante TEXT NOT NULL, 
             fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
@@ -36,12 +37,11 @@ def crear_base_de_datos(nombre_db="cedulas.db"):
         crear_historial_query = """
         CREATE TABLE IF NOT EXISTS historial (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_estudiante TEXT NOT NULL,
             numero_de_cedula TEXT NOT NULL,
             dia DATE NOT NULL,
             hora TIME NOT NULL,
-            fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (numero_de_cedula) REFERENCES cedulas_registradas (numero_de_cedula)
+            becado TEXT NOT NULL, 
+            fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """
         cursor.execute(crear_historial_query)
